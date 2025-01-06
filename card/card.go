@@ -1,74 +1,107 @@
 package card
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
+
 	"github.com/labstack/echo/v4"
+	"yourproject/db"
 )
 
-// Card represents a card entity
 type Card struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
-	Body  string `json:"body"`
+	ID      int    `json:"id"`
+	Content string `json:"content"`
+	UserID  int    `json:"user_id"`
 }
 
-var cards = []Card{
-	{ID: 1, Title: "Card 1", Body: "This is card 1"},
-	{ID: 2, Title: "Card 2", Body: "This is card 2"},
-}
-
-// GetCards returns all cards
 func GetCards(c echo.Context) error {
+	rows, err := db.DB.Query("SELECT id, content, user_id FROM cards")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	defer rows.Close()
+
+	var cards []Card
+	for rows.Next() {
+		var card Card
+		if err := rows.Scan(&card.ID, &card.Content, &card.UserID); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+		cards = append(cards, card)
+	}
+
 	return c.JSON(http.StatusOK, cards)
 }
 
-// GetCard returns a single card by ID
 func GetCard(c echo.Context) error {
-	id, _ := strconv.Atoi(c.Param("id"))
-	for _, card := range cards {
-		if card.ID == id {
-			return c.JSON(http.StatusOK, card)
-		}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
 	}
-	return c.JSON(http.StatusNotFound, map[string]string{"error": "Card not found"})
+
+	var card Card
+	err = db.DB.QueryRow("SELECT id, content, user_id FROM cards WHERE id = ?", id).Scan(&card.ID, &card.Content, &card.UserID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "card not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, card)
 }
 
-// CreateCard creates a new card
 func CreateCard(c echo.Context) error {
-	card := new(Card)
-	if err := c.Bind(card); err != nil {
-		return err
+	var card Card
+	if err := c.Bind(&card); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
-	card.ID = len(cards) + 1
-	cards = append(cards, *card)
+
+	result, err := db.DB.Exec("INSERT INTO cards (content, user_id) VALUES (?, ?)", card.Content, card.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	card.ID = int(id)
 	return c.JSON(http.StatusCreated, card)
 }
 
-// UpdateCard updates an existing card
 func UpdateCard(c echo.Context) error {
-	id, _ := strconv.Atoi(c.Param("id"))
-	card := new(Card)
-	if err := c.Bind(card); err != nil {
-		return err
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
 	}
-	for i, card0 := range cards {
-		if card0.ID == id {
-			cards[i] = *card
-			return c.JSON(http.StatusOK, card)
-		}
+
+	var card Card
+	if err := c.Bind(&card); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
-	return c.JSON(http.StatusNotFound, map[string]string{"error": "Card not found"})
+
+	_, err = db.DB.Exec("UPDATE cards SET content = ?, user_id = ? WHERE id = ?", card.Content, card.UserID, id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	card.ID = id
+	return c.JSON(http.StatusOK, card)
 }
 
-// DeleteCard deletes a card by ID
 func DeleteCard(c echo.Context) error {
-	id, _ := strconv.Atoi(c.Param("id"))
-	for i, card := range cards {
-		if card.ID == id {
-			cards = append(cards[:i], cards[i+1:]...)
-			return c.NoContent(http.StatusNoContent)
-		}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
 	}
-	return c.JSON(http.StatusNotFound, map[string]string{"error": "Card not found"})
+
+	_, err = db.DB.Exec("DELETE FROM cards WHERE id = ?", id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
