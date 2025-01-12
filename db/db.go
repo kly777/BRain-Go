@@ -17,13 +17,13 @@ func InitDB() error {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Create cards table if not exists
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL
+		name TEXT NOT NULL,
+		password TEXT NOT NULL
 	);
-	
+
 	CREATE TABLE IF NOT EXISTS cards (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		content TEXT NOT NULL,

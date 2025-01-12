@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"brain/db"
+
 	"github.com/labstack/echo/v4"
-	"yourproject/db"
 )
 
 type Card struct {

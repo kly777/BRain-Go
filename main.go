@@ -1,12 +1,13 @@
 package main
 
 import (
-
+	"brain/auth"
+	"brain/card"
+	"brain/db"
+	"brain/user"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"yourproject/db"
-	"yourproject/card"
 )
 
 func main() {
@@ -23,12 +24,26 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	// Routes
-	e.GET("/cards", card.GetCards)
-	e.GET("/cards/:id", card.GetCard)
-	e.POST("/cards", card.CreateCard)
-	e.PUT("/cards/:id", card.UpdateCard)
-	e.DELETE("/cards/:id", card.DeleteCard)
+	// Login route
+	e.POST("/login", auth.Login)
+
+	// Restricted routes
+	restricted := e.Group("/cards")
+	restricted.Use(auth.AuthMiddleware)
+
+	// Card routes
+	restricted.GET("", card.GetCards)
+	restricted.GET("/:id", card.GetCard)
+	restricted.POST("", card.CreateCard)
+	restricted.PUT("/:id", card.UpdateCard)
+	restricted.DELETE("/:id", card.DeleteCard)
+
+	// User routes
+	e.GET("/users", user.GetUsers)
+	e.GET("/users/:id", user.GetUser)
+	e.POST("/users", user.CreateUser)
+	e.PUT("/users/:id", user.UpdateUser)
+	e.DELETE("/users/:id", user.DeleteUser)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
