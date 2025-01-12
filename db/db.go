@@ -12,7 +12,7 @@ var DB *sql.DB
 
 func InitDB() error {
 	var err error
-	DB, err = sql.Open("sqlite3", "./cards.db")
+	DB, err = sql.Open("sqlite3", "./brain.db")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -29,6 +29,18 @@ func InitDB() error {
 		content TEXT NOT NULL,
 		user_id INTEGER,
 		FOREIGN KEY(user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS relations (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		relata INTEGER NOT NULL,
+		relation INTEGER NOT NULL,
+		position INTEGER NOT NULL,
+		describe TEXT NOT NULL,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		FOREIGN KEY(relata) REFERENCES cards(id),
+		FOREIGN KEY(relation) REFERENCES cards(id)
 	);`
 
 	_, err = DB.Exec(query)

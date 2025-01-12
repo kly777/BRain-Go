@@ -44,14 +44,14 @@ func GetUsers(c echo.Context) error {
 func GetUser(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "无效的 ID"})
 	}
 
 	var user User
 	err = db.DB.QueryRow("SELECT id, name FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "user not found"})
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "未找到用户"})
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}

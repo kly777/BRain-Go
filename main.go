@@ -4,6 +4,7 @@ import (
 	"brain/auth"
 	"brain/card"
 	"brain/db"
+	"brain/relation"
 	"brain/user"
 
 	"github.com/labstack/echo/v4"
@@ -44,6 +45,15 @@ func main() {
 	e.POST("/users", user.CreateUser)
 	e.PUT("/users/:id", user.UpdateUser)
 	e.DELETE("/users/:id", user.DeleteUser)
+
+	// Relation routes
+	relationHandler := relation.NewHandler(db.DB)
+	relationGroup := restricted.Group("/relations")
+	relationGroup.POST("", relationHandler.Create)
+	relationGroup.GET("/:id", relationHandler.Get)
+	relationGroup.PUT("/:id", relationHandler.Update)
+	relationGroup.DELETE("/:id", relationHandler.Delete)
+	relationGroup.GET("/relata/:id", relationHandler.ListByRelata)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))

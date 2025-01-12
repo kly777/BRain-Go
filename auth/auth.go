@@ -26,7 +26,7 @@ func Login(c echo.Context) error {
 	}
 
 	if err := c.Bind(&loginReq); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "无效请求"})
 	}
 
 	// Get user from database
@@ -34,12 +34,12 @@ func Login(c echo.Context) error {
 	err := db.DB.QueryRow("SELECT id, password FROM users WHERE name = ?", loginReq.Name).
 		Scan(&user.ID, &user.Password)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "无效的凭证"})
 	}
 
 	// Compare password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginReq.Password)); err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "无效的凭证"})
 	}
 
 	// Create JWT token
@@ -60,23 +60,34 @@ func Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"token": tokenString})
 }
 
+// AuthMiddleware 是一个中间件函数，用于验证请求中的授权令牌
+// 参数 next 是下一个要执行的处理函数
+// 返回一个新的处理函数，该处理函数会进行令牌验证，然后调用 next
 func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		tokenString := c.Request().Header.Get("Authorization")
-		if tokenString == "" {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing authorization token"})
-		}
+    return func(c echo.Context) error {
+        // 从请求头中获取授权令牌
+        tokenString := c.Request().Header.Get("Authorization")
+        // 如果没有提供令牌，返回错误响应
+        if tokenString == "" {
+            return c.JSON(http.StatusUnauthorized, map[string]string{"error": "缺少授权令牌"})
+        }
 
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
-		})
+        // 初始化 Claims 对象，用于解析令牌中的声明
+        claims := &Claims{}
+        // 解析令牌，并验证其签名
+        token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+            // 返回用于验证令牌签名的密钥
+            return jwtSecret, nil
+        })
 
-		if err != nil || !token.Valid {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
-		}
+        // 如果解析出错或令牌无效，返回错误响应
+        if err != nil || !token.Valid {
+            return c.JSON(http.StatusUnauthorized, map[string]string{"error": "无效令牌"})
+        }
 
-		c.Set("userID", claims.UserID)
-		return next(c)
-	}
+        // 将解析出的用户 ID 存储在上下文中，以便后续使用
+        c.Set("userID", claims.UserID)
+        // 调用下一个处理函数
+        return next(c)
+    }
 }
